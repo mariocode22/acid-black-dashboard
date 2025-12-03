@@ -1,17 +1,21 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, ViewChild } from '@angular/core';
 import { ProductService } from '../../services/product.service';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { Product } from '../../types/product';
 import { FilterChange } from '../../components/inicio/inicio-barra/inicio-barra';
+import { ProductFormModal } from '../../components/products/product-form-modal/product-form-modal';
 
 @Component({
   selector: 'product-list',
-  imports: [CommonModule, HttpClientModule],
+  imports: [CommonModule, HttpClientModule, ProductFormModal],
   providers: [ProductService],
   templateUrl: './product-list.component.html',
 })
 export class ProductListComponent implements OnInit {
+  // Referencia al modal
+  @ViewChild(ProductFormModal) productFormModal!: ProductFormModal;
+
   // Productos originales del servicio
   private allProducts = signal<Product[]>([]);
 
@@ -76,18 +80,17 @@ export class ProductListComponent implements OnInit {
   }
 
   addProduct(): void {
-    console.log('Add product clicked');
-    // Aquí puedes abrir un modal o navegar a un formulario
+    this.productFormModal.openForCreate();
   }
 
   viewProduct(product: Product): void {
     console.log('View product:', product);
-    // Aquí puedes abrir un modal o navegar a la vista de detalle
+    // Aquí puedes abrir un modal de vista o navegar a detalle
+    alert(`Visualizando: ${product.nombre}\n\nDescripción: ${product.descripcion}`);
   }
 
   editProduct(product: Product): void {
-    console.log('Edit product:', product);
-    // Aquí puedes abrir un modal de edición o navegar al formulario
+    this.productFormModal.openForEdit(product);
   }
 
   deleteProduct(product: Product): void {
@@ -106,6 +109,12 @@ export class ProductListComponent implements OnInit {
         }
       });
     }
+  }
+
+  // Callback cuando se guarda un producto
+  onProductSaved(product: Product): void {
+    // Recargar la lista de productos
+    this.loadProducts();
   }
 
   formatPrice(price: number): string {

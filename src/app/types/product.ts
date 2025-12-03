@@ -3,9 +3,7 @@ export interface Product {
   nombre: string;
   descripcion: string;
   precio: number;
-  imagenes: string[];
+  imagenes: string[]; // <--- IMPORTANTE
   categorias: string[];
   genero: string;
-  createdAt: string;
-  updatedAt: string;
 }

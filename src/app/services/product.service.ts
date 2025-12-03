@@ -3,6 +3,24 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, shareReplay } from 'rxjs';
 import { Product } from '../types/product';
 
+export interface CreateProductDto {
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  imagenes: string[];
+  categorias: string[];
+  genero: string;
+}
+
+export interface UpdateProductDto {
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  imagenes: string[];
+  categorias: string[];
+  genero: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -22,6 +40,36 @@ export class ProductService {
   getProductById(id: number): Observable<Product> {
     return this.http.get<Product>(`${this.apiUrl}/${id}`);
   }
+
+  // Crear nuevo producto (sin id, createdAt, updatedAt)
+createProduct(product: CreateProductDto): Observable<Product> {
+  const body = {
+    nombre: product.nombre,
+    descripcion: product.descripcion,
+    precio: product.precio,
+    categorias: product.categorias,
+    imagenes: product.imagenes,
+    genero: product.genero
+  };
+
+  return this.http.post<Product>(this.apiUrl, body);
+}
+
+
+
+  // Actualizar producto existente (sin id, createdAt, updatedAt)
+ updateProduct(id: number, product: UpdateProductDto): Observable<Product> {
+  const body = {
+    nombre: product.nombre,
+    descripcion: product.descripcion,
+    precio: product.precio,
+    categoria: product.categorias[0],
+    imagenUrl: product.imagenes[0]
+  };
+
+  return this.http.put<Product>(`${this.apiUrl}/${id}`, body);
+}
+
 
   // Eliminar producto
   deleteProduct(id: number): Observable<void> {
@@ -60,8 +108,6 @@ export class ProductService {
     maxPrice?: number;
     text?: string;
   }): Observable<Product[]> {
-    let params = new HttpParams();
-
     if (filters.category && filters.category !== 'all') {
       return this.searchByCategory(filters.category);
     }
