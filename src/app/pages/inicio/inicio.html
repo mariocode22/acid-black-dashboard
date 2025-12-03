@@ -1,2 +1,7 @@
-<inicio-barra/>
-<product-list/>
+<div class="min-h-screen bg-neutral-100">
+  <inicio-barra (filterChange)="onFilterChange($event)"/>
+
+  <div class="container mx-auto px-4 py-6">
+    <product-list #productListRef/>
+  </div>
+</div>

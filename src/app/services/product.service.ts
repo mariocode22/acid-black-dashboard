@@ -1,19 +1,21 @@
 import { Injectable } from '@angular/core';
-import { HttpClient,HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, shareReplay } from 'rxjs';
 import { Product } from '../types/product';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProductService {
-  private apiUrl = 'https://acidblack-catalog-api.onrender.com/api/productos'; // Cambia esto a tu API
+  private readonly apiUrl = 'https://acidblack-catalog-api.onrender.com/api/productos';
 
   constructor(private http: HttpClient) {}
 
-  // Obtener todos los productos
+  // Obtener todos los productos con cache
   getProducts(): Observable<Product[]> {
-    return this.http.get<Product[]>(this.apiUrl);
+    return this.http.get<Product[]>(this.apiUrl).pipe(
+      shareReplay(1) // Cache la última respuesta
+    );
   }
 
   // Obtener producto por ID
@@ -48,5 +50,26 @@ export class ProductService {
   // Buscar por género
   searchByGenre(genero: string): Observable<Product[]> {
     return this.http.get<Product[]>(`${this.apiUrl}/genero/${genero}`);
+  }
+
+  // Búsqueda combinada (nuevo método para filtros múltiples)
+  searchProducts(filters: {
+    category?: string;
+    genre?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    text?: string;
+  }): Observable<Product[]> {
+    let params = new HttpParams();
+
+    if (filters.category && filters.category !== 'all') {
+      return this.searchByCategory(filters.category);
+    }
+
+    if (filters.genre && filters.genre !== 'all') {
+      return this.searchByGenre(filters.genre);
+    }
+
+    return this.getProducts();
   }
 }

@@ -1,31 +1,74 @@
 <div class="flex items-center gap-3 p-4 bg-neutral-800 border-b border-neutral-700">
   <span class="text-white text-sm font-medium mr-1">Filters:</span>
 
-  <div class="relative">
-    <select
-      [(ngModel)]="selectedCategory"
-      (change)="onCategoryChange($event)"
-      class="appearance-none bg-neutral-900 border border-neutral-700 rounded-md text-white text-sm px-4 py-2 pr-10 cursor-pointer outline-none min-w-[200px] transition-colors hover:bg-neutral-800 focus:border-neutral-600">
-      <option *ngFor="let category of categories" [value]="category.value">
-        {{ category.label }}
-      </option>
-    </select>
-    <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </div>
+  <!-- Loading indicator -->
+  @if (loading()) {
+    <div class="flex items-center gap-2 text-neutral-400 text-sm">
+      <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span>Cargando filtros...</span>
+    </div>
+  }
 
-  <div class="relative">
-    <select
-      [(ngModel)]="selectedGenre"
-      (change)="onGenreChange($event)"
-      class="appearance-none bg-neutral-900 border border-neutral-700 rounded-md text-white text-sm px-4 py-2 pr-10 cursor-pointer outline-none min-w-[200px] transition-colors hover:bg-neutral-800 focus:border-neutral-600">
-      <option *ngFor="let genre of genres" [value]="genre.value">
-        {{ genre.label }}
-      </option>
-    </select>
-    <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </div>
+  @if (!loading()) {
+    <!-- Category Filter -->
+    <div class="relative">
+      <select
+        [value]="selectedCategory()"
+        (change)="onCategoryChange($event)"
+        class="appearance-none bg-neutral-900 border border-neutral-700 rounded-md text-white text-sm px-4 py-2 pr-10 cursor-pointer outline-none min-w-[200px] transition-colors hover:bg-neutral-800 focus:border-neutral-600">
+        @for (category of categories(); track category.value) {
+          <option [value]="category.value">
+            {{ category.label }}
+          </option>
+        }
+      </select>
+      <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <!-- Genre Filter -->
+    <div class="relative">
+      <select
+        [value]="selectedGenre()"
+        (change)="onGenreChange($event)"
+        class="appearance-none bg-neutral-900 border border-neutral-700 rounded-md text-white text-sm px-4 py-2 pr-10 cursor-pointer outline-none min-w-[200px] transition-colors hover:bg-neutral-800 focus:border-neutral-600">
+        @for (genre of genres(); track genre.value) {
+          <option [value]="genre.value">
+            {{ genre.label }}
+          </option>
+        }
+      </select>
+      <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <!-- Active Filters Badge -->
+    @if (selectedCategory() !== 'all' || selectedGenre() !== 'all') {
+      <div class="flex items-center gap-2">
+        <span class="text-neutral-400 text-sm">
+          Filtros activos:
+        </span>
+        @if (selectedCategory() !== 'all') {
+          <span class="px-2 py-1 bg-blue-500 text-white text-xs rounded-full">
+            {{ selectedCategory() }}
+          </span>
+        }
+        @if (selectedGenre() !== 'all') {
+          <span class="px-2 py-1 bg-purple-500 text-white text-xs rounded-full">
+            {{ selectedGenre() }}
+          </span>
+        }
+        <button
+          (click)="clearFilters()"
+          class="text-neutral-400 hover:text-white text-xs underline transition-colors">
+          Limpiar
+        </button>
+      </div>
+    }
+  }
 </div>
