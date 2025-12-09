@@ -1,7 +1,10 @@
-import { Component, signal, computed, output } from '@angular/core';
+// product-form-modal.component.ts
+
+import { Component, signal, computed, output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProductService, CreateProductDto, UpdateProductDto } from '../../../services/product.service';
 import { Product } from '../../../types/product';
+import { FormsModule } from '@angular/forms';
 
 interface FormData {
   nombre: string;
@@ -23,68 +26,59 @@ interface FormErrors {
 
 @Component({
   selector: 'product-form-modal',
-  imports: [CommonModule],
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   templateUrl: './product-form-modal.html',
-  standalone: true
 })
 export class ProductFormModal {
-  // Señales de estado
-  protected isOpen = signal<boolean>(false);
-  protected isEditMode = signal<boolean>(false);
-  protected saving = signal<boolean>(false);
-  protected submitError = signal<string | null>(null);
 
-  // Datos del formulario
-  protected formData = signal<FormData>({
-    nombre: '',
-    descripcion: '',
-    precio: 0,
-    genero: '',
-    categorias: [],
-    imagenes: []
+  newCategory: string = '';
+  newImage: string = '';
+
+  private readonly productService = inject(ProductService);
+
+  // Signals de estado
+  protected readonly isOpen = signal(false);
+  protected readonly isEditMode = signal(false);
+  protected readonly saving = signal(false);
+  protected readonly submitError = signal<string | null>(null);
+
+  // Signal del formulario principal
+  protected readonly formData = signal<FormData>({
+    nombre: '', descripcion: '', precio: 0, genero: '', categorias: [], imagenes: []
   });
 
-  // Errores de validación
-  protected errors = signal<FormErrors>({});
+  protected readonly errors = signal<FormErrors>({});
+  private readonly editingProductId = signal<number | null>(null);
 
-  // Campos temporales
-  protected newCategory = signal<string>('');
-  protected newImage = signal<string>('');
-
-  // ID del producto en edición
-  private editingProductId = signal<number | null>(null);
-
-  // Evento de éxito
+  // Output para notificar al padre
   productSaved = output<Product>();
 
-  // Validación del formulario
-  protected isFormValid = computed(() => {
-    const data = this.formData();
+  // Computed para validación básica (opcional, usado en UI)
+  protected readonly isFormValid = computed(() => {
+    const d = this.formData();
     return (
-      data.nombre.trim() !== '' &&
-      data.descripcion.trim() !== '' &&
-      data.precio > 0 &&
-      data.genero !== '' &&
-      data.categorias.length > 0 &&
-      data.imagenes.length > 0
+      d.nombre.trim() !== '' &&
+      d.descripcion.trim() !== '' &&
+      d.precio > 0 &&
+      d.genero !== '' &&
+      d.categorias.length > 0 &&
+      d.imagenes.length > 0
     );
   });
 
-  constructor(private productService: ProductService) {}
+  // ---------------------- MODAL ----------------------
 
-  // Abrir modal para crear producto
   openForCreate(): void {
     this.resetForm();
     this.isEditMode.set(false);
-    this.isOpen.set(true);
     this.editingProductId.set(null);
+    this.isOpen.set(true);
   }
 
-  // Abrir modal para editar producto
   openForEdit(product: Product): void {
     this.isEditMode.set(true);
-    this.isOpen.set(true);
-    this.editingProductId.set(product.id);
+    this.editingProductId.set(product.id!);
 
     this.formData.set({
       nombre: product.nombre,
@@ -95,160 +89,108 @@ export class ProductFormModal {
       imagenes: [...product.imagenes]
     });
 
-    this.errors.set({});
-    this.submitError.set(null);
+    this.isOpen.set(true);
   }
 
-  // Cerrar modal
   closeModal(): void {
-    if (!this.saving()) {
-      this.isOpen.set(false);
-      setTimeout(() => this.resetForm(), 300); // Esperar animación
-    }
+    if (this.saving()) return;
+    this.isOpen.set(false);
   }
 
-  // Resetear formulario
   private resetForm(): void {
-    this.formData.set({
-      nombre: '',
-      descripcion: '',
-      precio: 0,
-      genero: '',
-      categorias: [],
-      imagenes: []
-    });
+    this.formData.set({ nombre: '', descripcion: '', precio: 0, genero: '', categorias: [], imagenes: [] });
     this.errors.set({});
     this.submitError.set(null);
-    this.newCategory.set('');
-    this.newImage.set('');
   }
 
-  // Actualizar campo del formulario
+  // ---------------------- FORM INPUTS ----------------------
+
   updateField(field: keyof FormData, event: Event): void {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-    const value = field === 'precio' ? Number(target.value) : target.value;
+    let value: any = target.value;
 
-    this.formData.update(data => ({
-      ...data,
-      [field]: value
-    }));
+    if (field === 'precio') value = Number(value) || 0;
 
-    // Limpiar error del campo
-    this.errors.update(errs => {
-      const newErrors = { ...errs };
-      delete newErrors[field];
-      return newErrors;
-    });
+    this.formData.update(d => ({ ...d, [field]: value }));
   }
 
-  // Categorías
-  updateNewCategory(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.newCategory.set(target.value);
-  }
+  // ---------------------- CATEGORÍAS (Nuevo - Sin Prompt) ----------------------
 
-  addCategory(event?: Event): void {
-    if (event) {
-      event.preventDefault();
-    }
+  addCategory(): void {
+    const val = this.newCategory.trim();
+    if (!val) return;
 
-    const category = this.newCategory().trim();
-    if (category && !this.formData().categorias.includes(category)) {
-      this.formData.update(data => ({
-        ...data,
-        categorias: [...data.categorias, category]
+    const currentData = this.formData();
+
+    if (!currentData.categorias.includes(val)) {
+      this.formData.update(d => ({
+        ...d,
+        categorias: [...d.categorias, val]
       }));
-      this.newCategory.set('');
     }
+
+    // Limpiamos el input
+    this.newCategory = '';
   }
 
-  removeCategory(index: number): void {
-    this.formData.update(data => ({
-      ...data,
-      categorias: data.categorias.filter((_, i) => i !== index)
+  removeCategory(i: number): void {
+    this.formData.update(d => ({
+      ...d,
+      categorias: d.categorias.filter((_, x) => x !== i)
     }));
   }
 
-  // Imágenes
-  updateNewImage(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.newImage.set(target.value);
+  // ---------------------- IMÁGENES (Nuevo - Sin Prompt) ----------------------
+
+  addImage(): void {
+    const val = this.newImage.trim();
+    if (!val) return;
+
+    this.formData.update(d => ({
+      ...d,
+      imagenes: [...d.imagenes, val]
+    }));
+
+    // Limpiamos el input
+    this.newImage = '';
   }
 
-  addImage(event?: Event): void {
-    if (event) {
-      event.preventDefault();
-    }
-
-    const imageUrl = this.newImage().trim();
-    if (imageUrl && !this.formData().imagenes.includes(imageUrl)) {
-      // Validar que sea una URL válida
-      try {
-        new URL(imageUrl);
-        this.formData.update(data => ({
-          ...data,
-          imagenes: [...data.imagenes, imageUrl]
-        }));
-        this.newImage.set('');
-      } catch {
-        this.errors.update(errs => ({
-          ...errs,
-          imagenes: 'URL de imagen no válida'
-        }));
-      }
-    }
-  }
-
-  removeImage(index: number): void {
-    this.formData.update(data => ({
-      ...data,
-      imagenes: data.imagenes.filter((_, i) => i !== index)
+  removeImage(i: number): void {
+    this.formData.update(d => ({
+      ...d,
+      imagenes: d.imagenes.filter((_, x) => x !== i)
     }));
   }
 
-  onImageError(event: Event): void {
-    const img = event.target as HTMLImageElement;
-    img.src = 'https://via.placeholder.com/150?text=Error';
-  }
+  // ---------------------- VALIDACIÓN ----------------------
 
-  // Validar formulario
   private validateForm(): boolean {
-    const data = this.formData();
-    const newErrors: FormErrors = {};
+    const d = this.formData();
+    const e: FormErrors = {};
 
-    if (!data.nombre.trim()) {
-      newErrors.nombre = 'El nombre es requerido';
-    }
+    if (!d.nombre.trim()) e.nombre = 'El nombre es requerido';
+    if (!d.descripcion.trim()) e.descripcion = 'La descripción es requerida';
+    if (d.precio <= 0) e.precio = 'El precio debe ser mayor que 0';
+    if (!d.genero) e.genero = 'El género es requerido';
+    if (d.categorias.length === 0) e.categorias = 'Debe agregar al menos una categoría';
+    if (d.imagenes.length === 0) e.imagenes = 'Debe agregar al menos una imagen';
 
-    if (!data.descripcion.trim()) {
-      newErrors.descripcion = 'La descripción es requerida';
-    }
-
-    if (data.precio <= 0) {
-      newErrors.precio = 'El precio debe ser mayor a 0';
-    }
-
-    if (!data.genero) {
-      newErrors.genero = 'El género es requerido';
-    }
-
-    if (data.categorias.length === 0) {
-      newErrors.categorias = 'Debe agregar al menos una categoría';
-    }
-
-    if (data.imagenes.length === 0) {
-      newErrors.imagenes = 'Debe agregar al menos una imagen';
-    }
-
-    this.errors.set(newErrors);
-    return Object.keys(newErrors).length === 0;
+    this.errors.set(e);
+    return Object.keys(e).length === 0;
   }
 
-  // Enviar formulario
+  // ---------------------- SUBMIT (Sin cambios lógicos) ----------------------
+
   onSubmit(): void {
+    console.log("🔥 FORMULARIO INTENTÓ ENVIARSE");
+
+    if (this.saving()) return;
     if (!this.validateForm()) {
+      this.submitError.set('Corregir errores antes de continuar');
       return;
     }
+
+    console.log("📦 DATOS DEL FORMULARIO:", this.formData());
 
     this.saving.set(true);
     this.submitError.set(null);
@@ -256,58 +198,81 @@ export class ProductFormModal {
     const data = this.formData();
 
     if (this.isEditMode()) {
-      // Editar producto existente
-      const productId = this.editingProductId();
-      if (productId === null) {
-        this.submitError.set('Error: ID de producto no encontrado');
-        this.saving.set(false);
-        return;
-      }
-
-      const updateDto: UpdateProductDto = {
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        precio: data.precio,
-        genero: data.genero,
-        categorias: data.categorias,
-        imagenes: data.imagenes
-      };
-
-      this.productService.updateProduct(productId, updateDto).subscribe({
-        next: (product) => {
-          this.saving.set(false);
-          this.productSaved.emit(product);
-          this.closeModal();
-        },
-        error: (err) => {
-          this.saving.set(false);
-          this.submitError.set('Error al actualizar el producto. Por favor, intenta de nuevo.');
-          console.error('Error updating product:', err);
-        }
-      });
+      console.log("✏️ MODO EDICIÓN — Enviando updateProduct()");
+      this.updateProduct(data);
     } else {
-      // Crear nuevo producto
-      const createDto: CreateProductDto = {
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        precio: data.precio,
-        genero: data.genero,
-        categorias: data.categorias,
-        imagenes: data.imagenes
-      };
-
-      this.productService.createProduct(createDto).subscribe({
-        next: (product) => {
-          this.saving.set(false);
-          this.productSaved.emit(product);
-          this.closeModal();
-        },
-        error: (err) => {
-          this.saving.set(false);
-          this.submitError.set('Error al crear el producto. Por favor, intenta de nuevo.');
-          console.error('Error creating product:', err);
-        }
-      });
+      console.log("🆕 MODO CREACIÓN — Enviando createProduct()");
+      this.createProduct(data);
     }
+  }
+
+  // ---------------------- CREAR ----------------------
+
+  private createProduct(data: FormData): void {
+    const dto: CreateProductDto = {
+      nombre: data.nombre,
+      descripcion: data.descripcion,
+      precio: data.precio,
+      categorias: data.categorias,
+      imagenes: data.imagenes,
+      genero: data.genero
+    };
+
+    console.log("🚀 ENVIANDO DTO AL SERVICIO:", dto);
+
+    this.productService.createProduct(dto).subscribe({
+      next: (p) => {
+        console.log("✅ PRODUCTO CREADO:", p);
+        this.saving.set(false);
+        this.productSaved.emit(p);
+        this.closeModal();
+      },
+      error: (err) => {
+        console.error("❌ ERROR EN LA CREACIÓN:", err);
+        this.saving.set(false);
+        this.submitError.set(this.extractError(err));
+      }
+    });
+  }
+
+  // ---------------------- ACTUALIZAR ----------------------
+
+  private updateProduct(data: FormData): void {
+    const id = this.editingProductId();
+    if (!id) {
+      this.submitError.set('No se encontró ID del producto');
+      this.saving.set(false);
+      return;
+    }
+
+    const dto: UpdateProductDto = {
+      nombre: data.nombre,
+      descripcion: data.descripcion,
+      precio: data.precio,
+      categorias: data.categorias,
+      imagenes: data.imagenes,
+      genero: data.genero
+    };
+
+    this.productService.updateProduct(id, dto).subscribe({
+      next: (p) => {
+        this.saving.set(false);
+        this.productSaved.emit(p);
+        this.closeModal();
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.submitError.set(this.extractError(err));
+      }
+    });
+  }
+
+  // ---------------------- ERRORES ----------------------
+
+  private extractError(err: any): string {
+    if (typeof err === 'string') return err;
+    if (err?.error?.message) return err.error.message;
+    if (err?.message) return err.message;
+    return 'Error inesperado';
   }
 }
